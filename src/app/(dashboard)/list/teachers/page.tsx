@@ -2,17 +2,18 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
-import { role, teachersData } from "@/lib/data";
+import { role } from "@/lib/data";
+import prisma from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
 
-type Teacher = {
-  id: number;
+type TeacherRow = {
+  id: string | number;
   teacherId: string;
   name: string;
-  email?: string;
+  email?: string | null;
   photo: string;
-  phone: string;
+  phone: string | null;
   subjects: string[];
   classes: string[];
   address: string;
@@ -54,8 +55,28 @@ const columns = [
   },
 ];
 
-const TeacherListPage = () => {
-  const renderRow = (item: Teacher) => (
+const TeacherListPage = async () => {
+  const teachers = await prisma.teacher.findMany({
+    include: {
+      subjects: true,
+      classes: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const data: TeacherRow[] = teachers.map((t) => ({
+    id: t.id,
+    teacherId: t.username,
+    name: `${t.name}`,
+    email: t.email ?? null,
+    photo: t.img || "/avatar.png",
+    phone: t.phone ?? null,
+    subjects: (t as any).subjects?.map((s: { name: string }) => s.name) ?? [],
+    classes: (t as any).classes?.map((c: { name: string }) => c.name) ?? [],
+    address: t.address,
+  }));
+
+  const renderRow = (item: TeacherRow) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
@@ -70,13 +91,13 @@ const TeacherListPage = () => {
         />
         <div className="flex flex-col">
           <h3 className="font-semibold">{item.name}</h3>
-          <p className="text-xs text-gray-500">{item?.email}</p>
+          <p className="text-xs text-gray-500">{item?.email || ""}</p>
         </div>
       </td>
       <td className="hidden md:table-cell">{item.teacherId}</td>
       <td className="hidden md:table-cell">{item.subjects.join(",")}</td>
       <td className="hidden md:table-cell">{item.classes.join(",")}</td>
-      <td className="hidden md:table-cell">{item.phone}</td>
+      <td className="hidden md:table-cell">{item.phone || ""}</td>
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
@@ -120,7 +141,7 @@ const TeacherListPage = () => {
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={teachersData} />
+      <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
       <Pagination />
     </div>
