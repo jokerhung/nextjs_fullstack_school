@@ -55,14 +55,25 @@ const columns = [
   },
 ];
 
-const TeacherListPage = async () => {
-  const teachers = await prisma.teacher.findMany({
-    include: {
-      subjects: true,
-      classes: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: string } }) => {
+  const pageSize = 10;
+  const page = Math.max(1, Number(searchParams?.page) || 1);
+  const skip = (page - 1) * pageSize;
+
+  const [teachers, totalCount] = await Promise.all([
+    prisma.teacher.findMany({
+      include: {
+        subjects: true,
+        classes: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: pageSize,
+      skip,
+    }),
+    prisma.teacher.count(),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const data: TeacherRow[] = teachers.map((t) => ({
     id: t.id,
@@ -143,7 +154,7 @@ const TeacherListPage = async () => {
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
-      <Pagination />
+      <Pagination page={page} totalPages={totalPages} hrefBase="/list/teachers" />
     </div>
   );
 };
