@@ -4,6 +4,7 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import { role } from "@/lib/data";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -55,10 +56,20 @@ const columns = [
   },
 ];
 
-const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: string } }) => {
+const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: string; q?: string } }) => {
   const pageSize = 10;
   const page = Math.max(1, Number(searchParams?.page) || 1);
+  const q = (searchParams?.q || "").trim();
   const skip = (page - 1) * pageSize;
+
+  const where: Prisma.TeacherWhereInput = q
+    ? {
+        OR: [
+          { username: { contains: q, mode: "insensitive" } },
+          { subjects: { some: { name: { contains: q, mode: "insensitive" } } } },
+        ],
+      }
+    : {};
 
   const [teachers, totalCount] = await Promise.all([
     prisma.teacher.findMany({
@@ -67,10 +78,11 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
         classes: true,
       },
       orderBy: { createdAt: "desc" },
+      where,
       take: pageSize,
       skip,
     }),
-    prisma.teacher.count(),
+    prisma.teacher.count({ where }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -134,7 +146,7 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Teachers</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableSearch action="/list/teachers" defaultValue={q} />
           <div className="flex items-center gap-4 self-end">
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/filter.png" alt="" width={14} height={14} />
@@ -154,7 +166,7 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
-      <Pagination page={page} totalPages={totalPages} hrefBase="/list/teachers" />
+      <Pagination page={page} totalPages={totalPages} hrefBase="/list/teachers" query={{ q }} />
     </div>
   );
 };
