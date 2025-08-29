@@ -56,10 +56,11 @@ const columns = [
   },
 ];
 
-const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: string; q?: string } }) => {
+const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: string; q?: string; sort?: "asc" | "desc" } }) => {
   const pageSize = 10;
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const q = (searchParams?.q || "").trim();
+  const sort: "asc" | "desc" = (searchParams?.sort === "desc" ? "desc" : "asc");
   const skip = (page - 1) * pageSize;
 
   const where: Prisma.TeacherWhereInput = q
@@ -77,7 +78,10 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
         subjects: true,
         classes: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { name: sort },
+        { surname: sort },
+      ],
       where,
       take: pageSize,
       skip,
@@ -151,9 +155,16 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/filter.png" alt="" width={14} height={14} />
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
+            <Link
+              href={{
+                pathname: "/list/teachers",
+                query: { q: q || undefined, sort: sort === "asc" ? "desc" : "asc", page: 1 },
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow"
+              title={`Sort by name ${sort === "asc" ? "descending" : "ascending"}`}
+            >
               <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
+            </Link>
             {role === "admin" && (
               // <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               //   <Image src="/plus.png" alt="" width={14} height={14} />
@@ -166,7 +177,7 @@ const TeacherListPage = async ({ searchParams }: { searchParams?: { page?: strin
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
-      <Pagination page={page} totalPages={totalPages} hrefBase="/list/teachers" query={{ q }} />
+      <Pagination page={page} totalPages={totalPages} hrefBase="/list/teachers" query={{ q, sort }} />
     </div>
   );
 };
